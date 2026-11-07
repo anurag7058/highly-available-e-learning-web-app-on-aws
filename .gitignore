@@ -1,0 +1,16 @@
+
+# Environment secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Database and generated files
+db.sqlite3
+media/
+staticfiles/
+
+# macOS
+.DS_Store
