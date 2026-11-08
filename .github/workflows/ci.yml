@@ -1,4 +1,5 @@
-name: Django Docker CI
+
+name: AWS E-Learning CI/CD
 
 on:
   push:
@@ -8,17 +9,22 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: highly-available-e-learning-web-app
 
 jobs:
-  docker-build:
+  docker-build-and-push:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t mountain-coders-app:ci .
+        run: docker build -t e-learning-app:${{ github.sha }} .
 
       - name: Run Django system checks
         run: |
@@ -26,5 +32,29 @@ jobs:
             -e DJANGO_SECRET_KEY=ci-test-secret-key-not-for-production \
             -e DJANGO_DEBUG=False \
             -e DJANGO_ALLOWED_HOSTS=localhost \
-            mountain-coders-app:ci \
+            e-learning-app:${{ github.sha }} \
             python manage.py check
+
+      - name: Configure AWS credentials using OIDC
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'push'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push Docker image to ECR
+        if: github.event_name == 'push'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag e-learning-app:${IMAGE_TAG} \
+            ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+          docker push \
+            ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
