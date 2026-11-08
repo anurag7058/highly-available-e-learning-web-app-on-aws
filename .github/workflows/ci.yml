@@ -35,6 +35,28 @@ jobs:
             e-learning-app:${{ github.sha }} \
             python manage.py check
 
+                  - name: Verify AWS configuration
+        if: github.event_name == 'push'
+        env:
+          ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          if [ -z "$ROLE_ARN" ]; then
+            echo "ERROR: AWS_ROLE_ARN is empty"
+            exit 1
+          fi
+
+          if [ -z "$AWS_REGION" ]; then
+            echo "ERROR: AWS_REGION is empty"
+            exit 1
+          fi
+
+          echo "AWS_ROLE_ARN is configured"
+          echo "AWS_REGION is configured"
+          echo "AWS account and role:"
+          echo "$ROLE_ARN" | sed -E 's#(arn:aws:iam::)[0-9]+(:role/.*)#\1********\2#'
+          echo "AWS_REGION=$AWS_REGION"
+
       - name: Configure AWS credentials using OIDC
         if: github.event_name == 'push'
         uses: aws-actions/configure-aws-credentials@v4
